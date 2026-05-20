@@ -92,30 +92,6 @@ EOF
 EOF
 }
 
-# Resolve the real (non-root) user whose desktop should receive the look.
-# Honours TARGET_USER, then $SUDO_USER, then the current user.
-resolve_target_user() {
-    TARGET_USER="${TARGET_USER:-${SUDO_USER:-}}"
-    if [[ -z "$TARGET_USER" && $EUID -ne 0 ]]; then
-        TARGET_USER="$USER"
-    fi
-    if [[ -z "$TARGET_USER" || "$TARGET_USER" == "root" ]]; then
-        TARGET_HOME=""
-        return 1
-    fi
-    TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
-    [[ -n "$TARGET_HOME" && -d "$TARGET_HOME" ]]
-}
-
-# Run a command as the target desktop user.
-as_user() {
-    if [[ "$TARGET_USER" == "$USER" ]]; then
-        "$@"
-    else
-        as_root runuser -u "$TARGET_USER" -- "$@"
-    fi
-}
-
 # Apply the Garuda Dr460nized ICONS (BeautyLine) and TASKBAR (Dr460nized panel
 # layout) to the target user. Installing the packages only makes these available;
 # this step actually activates them.

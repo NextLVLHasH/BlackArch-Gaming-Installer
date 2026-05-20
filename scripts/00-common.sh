@@ -73,3 +73,42 @@ pac_install() {
 repo_enabled() {
     grep -q "^\[$1\]" /etc/pacman.conf
 }
+
+# Remove packages if installed. Non-fatal; reports what was actually removed.
+pac_remove() {
+    local pkg present=()
+    for pkg in "$@"; do
+        pacman -Qq "$pkg" >/dev/null 2>&1 && present+=("$pkg")
+    done
+    if [[ ${#present[@]} -eq 0 ]]; then
+        log "None of the requested packages are installed: $*"
+        return 0
+    fi
+    log "Removing: ${present[*]}"
+    as_root pacman -Rns --noconfirm "${present[@]}"
+}
+
+# Resolve the real (non-root) user whose desktop should be configured.
+# Sets TARGET_USER and TARGET_HOME. Honours TARGET_USER, then $SUDO_USER,
+# then the current user. Returns non-zero if only root is available.
+resolve_target_user() {
+    TARGET_USER="${TARGET_USER:-${SUDO_USER:-}}"
+    if [[ -z "$TARGET_USER" && $EUID -ne 0 ]]; then
+        TARGET_USER="$USER"
+    fi
+    if [[ -z "$TARGET_USER" || "$TARGET_USER" == "root" ]]; then
+        TARGET_HOME=""
+        return 1
+    fi
+    TARGET_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+    [[ -n "$TARGET_HOME" && -d "$TARGET_HOME" ]]
+}
+
+# Run a command as the resolved target desktop user.
+as_user() {
+    if [[ "${TARGET_USER:-}" == "$USER" ]]; then
+        "$@"
+    else
+        as_root runuser -u "$TARGET_USER" -- "$@"
+    fi
+}
