@@ -64,6 +64,15 @@ log "Garuda desktop:   $(state $DO_DESKTOP)"
 log "Edge (browser):   $(state $DO_BROWSER)"
 log "Developer apps:   $(state $DO_APPS)"
 
+# This modifies the running system IN PLACE: changing the display manager and
+# default desktop, replacing the browser, and layering a third-party repo.
+warn "This OVERWRITES parts of your existing BlackArch install (desktop, login"
+warn "manager, default browser, repos). Make sure you can reach a TTY or live USB."
+confirm "Continue overwriting this BlackArch installation?" || die "Aborted by user."
+
+# Refresh keyrings once, up front, so every later install/repo-add succeeds.
+refresh_keyrings
+
 # Order matters: the desktop step enables Chaotic-AUR, which the browser and
 # apps steps rely on for Microsoft Edge, VS Code and LM Studio.
 if [[ $DO_NVIDIA -eq 1 ]]; then

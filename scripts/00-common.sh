@@ -44,6 +44,28 @@ require_arch() {
         || die "pacman not found. This installer targets Arch / BlackArch Linux only."
 }
 
+# True if this looks like a BlackArch system.
+is_blackarch() {
+    pacman -Qq blackarch-keyring >/dev/null 2>&1 \
+        || grep -qi blackarch /etc/os-release 2>/dev/null
+}
+
+# Refresh signing keyrings BEFORE adding third-party repos or installing
+# packages. On an existing (possibly old) BlackArch install, stale keyrings are
+# the #1 cause of "invalid or corrupted package (PGP signature)" failures.
+refresh_keyrings() {
+    log "Refreshing package signing keyrings (avoids PGP signature errors)..."
+    # archlinux-keyring is the documented exception to "no partial upgrades".
+    as_root pacman -Sy --needed --noconfirm archlinux-keyring || \
+        warn "Could not refresh archlinux-keyring; continuing."
+    if is_blackarch; then
+        as_root pacman -S --needed --noconfirm blackarch-keyring 2>/dev/null || \
+            warn "Could not refresh blackarch-keyring; continuing."
+    fi
+    as_root pacman-key --populate archlinux 2>/dev/null || true
+    is_blackarch && as_root pacman-key --populate blackarch 2>/dev/null || true
+}
+
 # Refresh databases + full system upgrade.
 pac_sync() {
     log "Synchronising package databases and upgrading the system..."
